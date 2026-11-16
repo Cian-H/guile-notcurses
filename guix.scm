@@ -57,7 +57,7 @@
                  "tests/test-structs.scm"
                  "tests/test-channels-cells.scm"
                  "tests/test-compat-curses.scm"))))))))
-  (home-page "https://example.invalid/guile-notcurses")
+  (home-page "https://github.com/Cian-H/guile-notcurses")
   (synopsis "Complete thin GNU Guile 3.x FFI wrapper for libnotcurses 3.x")
   (description
    "guile-notcurses provides complete thin GNU Guile 3.x FFI bindings to
