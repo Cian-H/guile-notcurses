@@ -33,7 +33,15 @@ A complete, comprehensive thin GNU Guile 3.x FFI wrapper around `libnotcurses` 3
       (notcurses_stop nc))))
 ```
 
-## Testing
+## Pre-compiling & Testing
+
+Pre-compile all modules to `.go` bytecode in `ccache/`:
+
+```bash
+./scripts/precompile
+```
+
+Run the full suite (SRFI-64 unit/struct/live-PTY tests + `tui-test` E2E):
 
 ```bash
 ./scripts/test
@@ -44,3 +52,15 @@ When using Guix (e.g., via `badb`'s `scripts/devenv`):
 ```bash
 /path/to/badb/scripts/devenv -- ./scripts/test
 ```
+
+## Guix Packaging
+
+Build and test as a standalone Guix package:
+
+```bash
+guix build -f guix.scm
+```
+
+## License
+
+LGPL-3.0-or-later — see [LICENSE](LICENSE).
