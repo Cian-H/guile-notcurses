@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export GUILE_LOAD_PATH="${ROOT_DIR}${GUILE_LOAD_PATH:+:$GUILE_LOAD_PATH}"
+if [[ -d "${ROOT_DIR}/ccache" ]]; then
+    export GUILE_LOAD_COMPILED_PATH="${ROOT_DIR}/ccache${GUILE_LOAD_COMPILED_PATH:+:$GUILE_LOAD_COMPILED_PATH}"
+fi
+
+fail=0
+for t in "${ROOT_DIR}"/tests/test-*.scm; do
+    name="$(basename "$t")"
+    echo "=== Running $name ==="
+    if [[ "$name" == "test-live-pty.scm" ]]; then
+        if command -v python3 >/dev/null 2>&1; then
+            out="$(python3 -c '
+import fcntl, os, pty, select, struct, subprocess, sys, termios
+master, slave = pty.openpty()
+fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
+env = os.environ.copy()
+if env.get("TERM", "") in ("", "dumb"):
+    env["TERM"] = "xterm-256color"
+p = subprocess.Popen(
+    ["guile", "--no-auto-compile", sys.argv[1]],
+    stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True
+)
+os.close(slave)
+chunks = []
+while True:
+    r, _, _ = select.select([master], [], [], 2.0)
+    if not r:
+        if p.poll() is not None:
+            break
+        continue
+    try:
+        data = os.read(master, 4096)
+    except OSError:
+        break
+    if not data:
+        break
+    chunks.append(data)
+    if b"\x1b[c" in data or b"\x1b[6n" in data:
+        os.write(master, b"\x1b[1;1R\x1b[?62;c")
+os.close(master)
+rc = p.wait()
+sys.stdout.write(b"".join(chunks).decode(errors="replace"))
+sys.exit(rc)
+' "$t")"
+        else
+            echo "SKIP $name (python3 not available for PTY)"
+            continue
+        fi
+    else
+        out="$(guile --no-auto-compile "$t")"
+    fi
+    echo "$out"
+    if echo "$out" | grep -qE "FAIL|unexpected failures.*[1-9]"; then
+        fail=1
+    fi
+done
+
+if command -v tui-test >/dev/null 2>&1; then
+    "${ROOT_DIR}/tests/e2e/run-tui-tests.sh" || fail=1
+fi
+
+rm -f "${ROOT_DIR}"/*.log /home/cianh/Projects/badb/*.log 2>/dev/null || true
+exit "$fail"
