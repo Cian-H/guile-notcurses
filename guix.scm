@@ -14,7 +14,7 @@
 
 (package
   (name "guile-notcurses")
-  (version "3.0.16")
+  (version "3.0.16.1")
   (source (local-file "."
                       "guile-notcurses-checkout"
                       #:recursive? #t

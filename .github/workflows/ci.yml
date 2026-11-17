@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -54,37 +54,37 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Detect upstream version change
-        id: dependency
+      - name: Detect package version change
+        id: version
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |
           changed=false
           if [[ ! "$BEFORE_SHA" =~ ^0+$ ]] &&
-             git cat-file -e \
-               "${BEFORE_SHA}:.notcurses-version" 2>/dev/null; then
-
-            if ! git diff --quiet \
-              "$BEFORE_SHA" "$GITHUB_SHA" -- .notcurses-version; then
+             git cat-file -e "${BEFORE_SHA}:guix.scm" 2>/dev/null; then
+            PREV_VER="$(git show "${BEFORE_SHA}:guix.scm" | sed -n 's/^[[:space:]]*(version "\([^"]*\)").*/\1/p' | head -n 1)"
+            CURR_VER="$(sed -n 's/^[[:space:]]*(version "\([^"]*\)").*/\1/p' guix.scm | head -n 1)"
+            if [[ -n "$CURR_VER" && "$CURR_VER" != "$PREV_VER" ]]; then
               changed=true
             fi
           fi
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
-        if: steps.dependency.outputs.changed == 'true'
+        if: steps.version.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="$(cat .notcurses-version)"
-          TAG="notcurses-${VERSION}"
+          VERSION="$(sed -n 's/^[[:space:]]*(version "\([^"]*\)").*/\1/p' guix.scm | head -n 1)"
+          NC_VERSION="$(cat .notcurses-version)"
+          TAG="v${VERSION}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release ${TAG} already exists."
             exit 0
           fi
 
           gh release create "$TAG" --target "$GITHUB_SHA" \
-            --title "guile-notcurses with Notcurses ${VERSION}" --generate-notes
+            --title "guile-notcurses ${VERSION} (Notcurses ${NC_VERSION})" --generate-notes

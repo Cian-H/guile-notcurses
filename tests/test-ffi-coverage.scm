@@ -6,7 +6,9 @@
              (system foreign)
              (notcurses))
 
-(define expected-notcurses-version (package-version notcurses))
+(define expected-notcurses-version
+  (let ((vf (string-append (dirname (current-filename)) "/../.notcurses-version")))
+    (string-trim-both (call-with-input-file vf read-line))))
 
 (test-begin "ffi-coverage")
 

@@ -15,34 +15,33 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - name: Check upstream release
+      - name: Check Guix notcurses version
         id: upstream
         run: |
           set -euo pipefail
           CURRENT="$(cat .notcurses-version)"
-          RELEASE="$(curl -fsSL https://api.github.com/repos/dankamongmen/notcurses/releases/latest)"
-          TAG="$(echo "$RELEASE" | jq -r '.tag_name')"
-          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-            echo "Unexpected upstream release tag: $TAG"
+          GUIX_DEF="$(curl -fsSL https://codeberg.org/guix/guix/raw/branch/master/gnu/packages/notcurses.scm)"
+          LATEST="$(echo "$GUIX_DEF" | sed -n 's/^[[:space:]]*(version "\([0-9]\+\.[0-9]\+\.[0-9]\+\)").*/\1/p' | head -n 1)"
+          if [[ -z "$LATEST" ]]; then
+            echo "Could not parse Guix notcurses version."
             exit 1
           fi
-          LATEST="${BASH_REMATCH[1]}"
-          echo "Installed version: ${CURRENT}"
-          echo "Latest version: ${LATEST}"
+          echo "Tracked Guix version: ${CURRENT}"
+          echo "Current Guix version: ${LATEST}"
           NEWEST="$(printf '%s\n%s\n' \
             "$CURRENT" "$LATEST" | sort -V | tail -n 1)"
           if [[ "$LATEST" == "$CURRENT" ||
                 "$NEWEST" != "$LATEST" ]]; then
-            echo "No newer upstream release."
+            echo "No newer Guix notcurses version."
             echo "update=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "A new upstream release is available."
+          echo "Guix updated notcurses to ${LATEST}."
           echo "version=${LATEST}" >> "$GITHUB_OUTPUT"
           echo "update=true" >> "$GITHUB_OUTPUT"
 
@@ -68,6 +67,7 @@ jobs:
           VERSION: ${{ steps.upstream.outputs.version }}
         run: |
           printf '%s\n' "$VERSION" > .notcurses-version
+          sed -i "s/(version \"[^\"]*\")/(version \"${VERSION}.1\")/" guix.scm
 
       - name: Build upstream Notcurses
         if: steps.upstream.outputs.update == 'true'
@@ -105,7 +105,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
-          git add .notcurses-version
+          git add .notcurses-version guix.scm
           git commit -m "$TITLE"
           git push --force --set-upstream origin "$BRANCH"
           if gh pr view "$BRANCH" >/dev/null 2>&1; then
