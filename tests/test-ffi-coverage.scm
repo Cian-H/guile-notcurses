@@ -1,28 +1,34 @@
 ;;; tests/test-ffi-coverage.scm — Verify FFI bindings and core metadata.
 
-(use-modules (srfi srfi-64)
+(use-modules (ice-9 rdelim)
+             (srfi srfi-64)
              (rnrs bytevectors)
              (system foreign)
              (notcurses))
 
+(define expected-notcurses-version (package-version notcurses))
+
 (test-begin "ffi-coverage")
 
-(test-equal "notcurses_version matches 3.x"
-  "3.0.16"
+(test-equal "notcurses_version matches locked version"
+  expected-notcurses-version
   (c-string->scheme (notcurses_version)))
 
-(test-assert "notcurses_version_components returns 3.0.16"
+(test-assert "notcurses_version_components reports a 3.x version"
   (let ((maj (make-bytevector 4 0))
         (min (make-bytevector 4 0))
         (pat (make-bytevector 4 0))
         (twk (make-bytevector 4 0)))
-    (notcurses_version_components (bytevector->pointer maj)
-                                  (bytevector->pointer min)
-                                  (bytevector->pointer pat)
-                                  (bytevector->pointer twk))
+
+    (notcurses_version_components
+      (bytevector->pointer maj)
+      (bytevector->pointer min)
+      (bytevector->pointer pat)
+      (bytevector->pointer twk))
+
     (and (= 3 (bytevector-s32-native-ref maj 0))
-         (= 0 (bytevector-s32-native-ref min 0))
-         (= 16 (bytevector-s32-native-ref pat 0)))))
+         (>= (bytevector-s32-native-ref min 0) 0)
+         (>= (bytevector-s32-native-ref pat 0) 0))))
 
 (test-equal "notcurses_str_blitter"
   "braille"

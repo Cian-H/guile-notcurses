@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT_DIR}"
 export GUILE_LOAD_PATH="${ROOT_DIR}${GUILE_LOAD_PATH:+:$GUILE_LOAD_PATH}"
 if [[ -d "${ROOT_DIR}/ccache" ]]; then
     export GUILE_LOAD_COMPILED_PATH="${ROOT_DIR}/ccache${GUILE_LOAD_COMPILED_PATH:+:$GUILE_LOAD_COMPILED_PATH}"

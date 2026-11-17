@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+VERSION="$(cat "${ROOT_DIR}/.notcurses-version")"
+
+WORK_DIR="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/notcurses-${VERSION}"
+
+SRC_DIR="${WORK_DIR}/src"
+BUILD_DIR="${WORK_DIR}/build"
+
+echo "Building Notcurses ${VERSION}"
+
+rm -rf "${WORK_DIR}"
+mkdir -p "${WORK_DIR}"
+
+# Download the exact upstream release.
+git clone \
+    --depth 1 \
+    --branch "v${VERSION}" \
+    https://github.com/dankamongmen/notcurses.git \
+    "${SRC_DIR}"
+
+# Configure Notcurses.
+cmake \
+    -S "${SRC_DIR}" \
+    -B "${BUILD_DIR}" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DUSE_CXX=OFF \
+    -DUSE_PANDOC=OFF \
+    -DUSE_DOCTEST=OFF \
+    -DUSE_FFMPEG=OFF \
+    -DUSE_DEFLATE=ON \
+    -DUSE_STATIC=OFF \
+    -DBUILD_EXECUTABLES=OFF \
+    -DBUILD_TESTING=OFF \
+    -DBUILD_FFI_LIBRARY=ON
+
+# Compile.
+cmake --build "${BUILD_DIR}" --parallel
+
+# Install libraries.
+sudo cmake --install "${BUILD_DIR}"
+
+# Refresh the dynamic linker cache.
+sudo ldconfig
+
+echo "Notcurses ${VERSION} installed successfully."
